@@ -4,7 +4,8 @@ import AudioMotionAnalyzer from 'audiomotion-analyzer';
 import React, { useState, useEffect } from "react";
 
 const audioCollections = {
-  'Pure notes': ['/E2.mp3', '/E5.mp3', '/Gsharp5.mp3', '/B5.mp3']
+  'Pure notes': ['/E2.mp3', '/C5.mp3', '/D5.mp3', '/E5.mp3', '/Fsharp5.mp3', '/G5.mp3', '/Gsharp5.mp3', '/A5.mp3', '/B5.mp3', '/Eminor arp.mp3'],
+  'Glockenspiel': ['/strings low C.mp3', '/glockenspiel C lydian.mp3']
 }
 
 /**************************/
