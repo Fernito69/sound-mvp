@@ -42,7 +42,43 @@
   height: 300px;
 }
 
-.freq {
+.freq-control {
   width: 100px;
   display: inline-block;
+}
+
+.control {
+  min-width: none;
+  width: 280px;  
+}
+
+.section {
+  display: flex;
+  flex-direction: row;
+}
+
+.track-title {
+  width: 200px;
+  overflow: hidden;
+  background-color:cyan;
+}
+
+.collection-title {
+  width: 200px;
+  font-weight: bold;
+  font-size: 1.2em;
+  background-color:khaki;
+}
+
+.main-toolbar {
+  display: flex;
+  flex-direction: row;
+}
+
+.play-button {
+  width: 80px;
+}
+
+.main-control {
+  background-color: grey;
 }

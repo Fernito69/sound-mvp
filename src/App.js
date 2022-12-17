@@ -3,8 +3,16 @@ import Pizzicato from "pizzicato";
 import AudioMotionAnalyzer from 'audiomotion-analyzer';
 import React, { useState, useEffect } from "react";
 
-// const audioFiles = ['/audio_short.mp3'];
-const audioFiles = ['/E2.mp3', '/E5.mp3', '/Gsharp5.mp3', '/B5.mp3'];
+const audioCollections = {
+  'Pure notes': ['/E2.mp3', '/E5.mp3', '/Gsharp5.mp3', '/B5.mp3']
+}
+
+/**************************/
+// Select audio collection here and refresh!
+const currentCollection = 'Pure notes';
+/**************************/
+
+const audioFiles = audioCollections[currentCollection];
 const soundsMap = {};
 
 audioFiles.forEach(filename => {
@@ -53,17 +61,100 @@ audioFiles.forEach(filename => {
   }
 });
 
+// HELPERS
+const logslider = (position, minv_val, maxv_val) => {
+  // position will be between 0 and 100
+  var minp = 0;
+  var maxp = 100;
+
+  // The result should be between 100 an 10000000
+  var minv = Math.log(minv_val);
+  var maxv = Math.log(maxv_val);
+
+  // calculate adjustment factor
+  var scale = (maxv - minv) / (maxp - minp);
+
+  return Math.exp(minv + scale * (position - minp));
+}
+
+const doOnAllSounds = (func) => {
+  Object.values(soundsMap).forEach(func);
+}
+/*********** */
+
 function App() {
+  const [allPlaying, setAllPlaying] = useState(false);
+  const [mainVol, setMainVol] = useState(.8);
+  const [mainLow, setMainLow] = useState(100);
+  const [mainLowFreq, setMainLowFreq] = useState(0);
+  const [mainHigh, setMainHigh] = useState(0);
+  const [mainHighFreq, setMainHighFreq] = useState(0);
+
   return (
     <div className="App">
-      {audioFiles.map(f => <AudioTrack key={f} filename={f} />)}
+      <MainToolbar
+        allPlaying={allPlaying} setAllPlaying={setAllPlaying}
+        mainVol={mainVol} setMainVol={setMainVol}
+        mainLow={mainLow} setMainLow={setMainLow}
+        mainLowFreq={mainLowFreq} setMainLowFreq={setMainLowFreq}
+        mainHigh={mainHigh} setMainHigh={setMainHigh}
+        mainHighFreq={mainHighFreq} setMainHighFreq={setMainHighFreq}
+      />
+      {audioFiles.map(f => <AudioTrack key={f} allPlaying={allPlaying} mainLow={mainLow} mainVol={mainVol} mainHigh={mainHigh} filename={f} />)}
     </div>
   );
 }
 
-export default App;
+const MainToolbar = ({ allPlaying, setAllPlaying, mainVol, setMainVol, mainLow, setMainLow, mainLowFreq, setMainLowFreq, mainHigh, setMainHigh, mainHighFreq, setMainHighFreq }) => {
+  const onPlayAll = () => {
+    doOnAllSounds(s => {
+      const sound = s.sound;
+      allPlaying ? sound.stop() : sound.play();      
+    });
+    setAllPlaying(!allPlaying);
+  }
+  const onVolumeAll = (value) => {
+    doOnAllSounds(s => {
+      const sound = s.sound;
+      sound.volume = value;
+    });    
+    setMainVol(value);
+  }
+  
+  const onLowPassAll = (value) => {
+    let lowFreq = logslider(value, 20, 22000);
+    setMainLow(value);
+    setMainLowFreq(lowFreq);
+    doOnAllSounds(s => {
+      s.changePassFilters(lowFreq, mainHighFreq);
+    });
+  }  
 
-const AudioTrack = ({ filename }) => {
+  const onHighPassAll = (value) => {
+    let highFreq = logslider(value, 20, 22000);
+    setMainHigh(value);
+    setMainHighFreq(highFreq);
+    doOnAllSounds(s => {
+      s.changePassFilters(mainLowFreq, highFreq);
+    });
+  } 
+
+  const controlData = [
+    { title: 'Main vol', onChange: ev => onVolumeAll(parseFloat(ev.target.value)), min: 0, max: 1, step: 0.01, value: mainVol, className: "volume-control", label: `${parseFloat(mainVol * 100).toFixed(2)}` },
+    { title: 'Low Pass', onChange: ev => onLowPassAll(parseFloat(ev.target.value)), min: 0, max: 100, step: 1, value: mainLow, className: "freq-control", label: `${parseInt(mainLowFreq)} Hz` },
+    { title: 'High Pass', onChange: ev => onHighPassAll(parseFloat(ev.target.value)), min: 0, max: 100, step: 1, value: mainHigh, className: "freq-control", label: `${parseInt(mainHighFreq)} Hz` }
+  ];
+
+  return <div className='main-toolbar'>
+    <div className='collection-title'>{currentCollection}</div>
+    <fieldset className='main-control'>
+      <button className='play-button' onClick={() => onPlayAll()}>{`${allPlaying ? 'STOP' : 'PLAY'} ALL`}</button>
+    </fieldset>
+    {controlData.map(d => <SliderControl key={d.title} {...d} mainClassName={'main-control control'} />)}
+  </div>
+}
+
+const AudioTrack = ({ filename, allPlaying, mainVol, mainHigh, mainLow }) => {
   const [inited, setInited] = useState(false);
   const [low, setLow] = useState(100);
   const [high, setHigh] = useState(0);
@@ -74,7 +165,27 @@ const AudioTrack = ({ filename }) => {
   const [pan, setPan] = useState(0);
   const [vol, setVol] = useState(0.8);
 
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    setPlaying(allPlaying);
+  }, [allPlaying])
+
+  useEffect(() => {
+    setVol(mainVol);
+  }, [mainVol]);
+
+  useEffect(() => {
+    setLow(mainLow);
+    let lowFreq = logslider(mainLow, 20, 22000);
+    setLowFreq(lowFreq);
+  }, [mainLow]);
+
+  useEffect(() => {
+    setHigh(mainHigh);
+    let highFreq = logslider(mainHigh, 20, 22000);
+    setHighFreq(highFreq);
+  }, [mainHigh]);
 
   useEffect(() => {
     if (!inited) {
@@ -111,52 +222,35 @@ const AudioTrack = ({ filename }) => {
     soundsMap[filename].sound.volume = volume;
   }
 
-  const logslider = (position, minv_val, maxv_val) => {
-    // position will be between 0 and 100
-    var minp = 0;
-    var maxp = 100;
-
-    // The result should be between 100 an 10000000
-    var minv = Math.log(minv_val);
-    var maxv = Math.log(maxv_val);
-
-    // calculate adjustment factor
-    var scale = (maxv - minv) / (maxp - minp);
-
-    return Math.exp(minv + scale * (position - minp));
-  }
-
   const playback = () => {
     const sound = soundsMap[filename].sound;
     setPlaying(!playing);
     playing ? sound.stop() : sound.play();
   }
 
-  return <section>
-    <b style={{ backgroundColor: 'green' }}>{filename}</b>
-    <fieldset>
-      <button onClick={() => playback()}>{playing ? 'Stop' : 'Play'}</button>
+  const controlData = [
+    { title: 'Volume', onChange: ev => changeVolumeValue(parseFloat(ev.target.value)), min: 0, max: 1, step: 0.01, value: vol, className: "volume-control", label: `${parseFloat(vol * 100).toFixed(2)}` },
+    { title: 'Low Pass', onChange: ev => changeLow(parseFloat(ev.target.value)), min: 0, max: 100, step: 1, value: low, className: "freq-control", label: `${parseInt(lowFreq)} Hz` },
+    { title: 'High Pass', onChange: ev => changeHigh(parseFloat(ev.target.value)), min: 0, max: 100, step: 1, value: high, className: "freq-control", label: `${parseInt(highFreq)} Hz` },
+    { title: 'Pan', onChange: ev => changePanValue(parseFloat(ev.target.value)), min: -1, max: 1, step: 0.01, value: pan, className: "pan-control", label: `${parseFloat(pan * 100).toFixed(2)}` },
+  ];
+
+  return <section className='section'>
+    <b className='track-title'>{filename}</b>
+    <fieldset className='play-button'>
+      <button onClick={() => playback()}>{(playing) ? 'Stop' : 'Play'}</button>
     </fieldset>
-    <fieldset>
-      <label>Volume</label>
-      <input type='range' onChange={ev => changeVolumeValue(parseFloat(ev.target.value))} min={0} max={1} step={0.01} value={vol}></input>
-      <label className="pan">{parseFloat(vol * 100).toFixed(2)}</label>
-    </fieldset>
-    <fieldset>
-      <label>Low Pass</label>
-      <input type='range' onChange={ev => changeLow(parseFloat(ev.target.value))} min={0} max={100} step={1} value={low}></input>
-      <label className="freq">{parseInt(lowFreq)} Hz</label>
-    </fieldset>
-    <fieldset>
-      <label>High Pass</label>
-      <input type='range' onChange={ev => changeHigh(parseFloat(ev.target.value))} min={0} max={100} step={1} value={high}></input>
-      <label className="freq">{parseInt(highFreq)} Hz</label>
-    </fieldset>
-    <fieldset>
-      <label>Pan</label>
-      <input type='range' onChange={ev => changePanValue(parseFloat(ev.target.value))} min={-1} max={1} step={0.01} value={pan}></input>
-      <label className="pan">{parseFloat(pan).toFixed(2)}</label>
-    </fieldset>
+    {controlData.map(d => <SliderControl key={d.title} {...d} />)}    
     <div style={{ width: '0%', height: '0%' }} id={`audio-spectrum-${filename}`}></div>
   </section>
 }
+
+const SliderControl = ({ title, onChange, min, max, step, value, className, label, mainClassName = 'control' }) => {
+  return <fieldset className={mainClassName}>
+    <label>{title}</label>
+    <input type='range' onChange={onChange} min={min} max={max} step={step} value={value}></input>
+    <label className={className}>{label}</label>
+  </fieldset>
+}
+
+export default App;
