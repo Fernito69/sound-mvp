@@ -78,7 +78,7 @@ const logslider = (position, minv_val, maxv_val) => {
   return Math.exp(minv + scale * (position - minp));
 }
 
-const doOnAllSounds = (func) => {
+const doOnAllTracks = (func) => {
   Object.values(soundsMap).forEach(func);
 }
 /*********** */
@@ -108,14 +108,14 @@ function App() {
 
 const MainToolbar = ({ allPlaying, setAllPlaying, mainVol, setMainVol, mainLow, setMainLow, mainLowFreq, setMainLowFreq, mainHigh, setMainHigh, mainHighFreq, setMainHighFreq }) => {
   const onPlayAll = () => {
-    doOnAllSounds(s => {
+    doOnAllTracks(s => {
       const sound = s.sound;
       allPlaying ? sound.stop() : sound.play();      
     });
     setAllPlaying(!allPlaying);
   }
   const onVolumeAll = (value) => {
-    doOnAllSounds(s => {
+    doOnAllTracks(s => {
       const sound = s.sound;
       sound.volume = value;
     });    
@@ -126,18 +126,14 @@ const MainToolbar = ({ allPlaying, setAllPlaying, mainVol, setMainVol, mainLow, 
     let lowFreq = logslider(value, 20, 22000);
     setMainLow(value);
     setMainLowFreq(lowFreq);
-    doOnAllSounds(s => {
-      s.changePassFilters(lowFreq, mainHighFreq);
-    });
+    doOnAllTracks(s => s.changePassFilters(lowFreq, mainHighFreq));
   }  
 
   const onHighPassAll = (value) => {
     let highFreq = logslider(value, 20, 22000);
     setMainHigh(value);
     setMainHighFreq(highFreq);
-    doOnAllSounds(s => {
-      s.changePassFilters(mainLowFreq, highFreq);
-    });
+    doOnAllTracks(s => s.changePassFilters(mainLowFreq, highFreq));
   } 
 
   const controlData = [
@@ -168,35 +164,6 @@ const AudioTrack = ({ filename, allPlaying, mainVol, mainHigh, mainLow }) => {
 
   const [playing, setPlaying] = useState(false);
 
-  useEffect(() => {
-    setPlaying(allPlaying);
-  }, [allPlaying])
-
-  useEffect(() => {
-    setVol(mainVol);
-  }, [mainVol]);
-
-  useEffect(() => {
-    setLow(mainLow);
-    let lowFreq = logslider(mainLow, 20, 22000);
-    setLowFreq(lowFreq);
-  }, [mainLow]);
-
-  useEffect(() => {
-    setHigh(mainHigh);
-    let highFreq = logslider(mainHigh, 20, 22000);
-    setHighFreq(highFreq);
-  }, [mainHigh]);
-
-  useEffect(() => {
-    if (!inited) {
-      // Initialize once
-      changeLow(100);
-      changeHigh(0);
-      setInited(true);
-    }
-  });
-
   const changeLow = (low) => {
     setLow(low);
 
@@ -212,6 +179,32 @@ const AudioTrack = ({ filename, allPlaying, mainVol, mainHigh, mainLow }) => {
     setHighFreq(highFreq);
     soundsMap[filename].changePassFilters(lowFreq, highFreq);
   }
+
+  useEffect(() => {
+    setPlaying(allPlaying);
+  }, [allPlaying])
+
+  useEffect(() => {
+    setVol(mainVol);
+  }, [mainVol]);
+
+  useEffect(() => {
+    changeLow(mainLow);    
+  }, [mainLow]);
+
+  useEffect(() => {
+    changeHigh(mainHigh);  
+  }, [mainHigh]);
+
+  useEffect(() => {
+    if (!inited) {
+      // Initialize once
+      changeLow(100);
+      changeHigh(0);
+      setInited(true);
+    }
+  });
+  
 
   const changePanValue = (pan) => {
     setPan(pan);
